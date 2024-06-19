@@ -7,7 +7,7 @@ dotenv.config();
 connectDB() // importing and ruuning DB connection function as soon as entry point file (index.js) starts running.
   .then((response) => {
     app.listen(process.env.PORT || 8000, () => {
-      console.log(`Server is running on port: ${(process.env, PORT)}`);
+      console.log(`Server is running on port: ${process.env.PORT}`);
     });
   })
   .catch((err) => {
