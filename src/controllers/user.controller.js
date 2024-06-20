@@ -43,7 +43,6 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const avatarLocalPath = req.files?.avatar[0]?.path;
   const coverImageLocalPath = req.files?.coverImage[0]?.path;
-  console.log(req.files);
   if (!avatarLocalPath) {
     throw new apiError(400, "avatar image is required multer");
   }
@@ -60,7 +59,7 @@ const registerUser = asyncHandler(async (req, res) => {
   // Create user Object, Entry in database(DB)
   const newUser = await User.create({
     fullName,
-    avatar: avatar.url,
+    avatar: newavatar.url,
     coverImage: newcoverImage?.url || "",
     email,
     password,
