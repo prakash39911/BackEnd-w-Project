@@ -1,8 +1,9 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { apiError } from "../utils/apiError.js";
 import { User } from "../models/user.model.js";
-import { uploadFileOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
+import multer from "multer";
 
 const registerUser = asyncHandler(async (req, res) => {
   // get user details from frontend
@@ -19,7 +20,6 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // Receive data from frontend
   const { userName, email, fullName, password } = req.body; // form and Json data comes in the req.body. this feature is definitely provided by express.
-  console.log(userName, email, fullName, password);
 
   // Validation for isEmpty
   if (
@@ -31,7 +31,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   // User already exists or not
-  const existingUser = User.findOne({
+  const existingUser = await User.findOne({
     $or: [{ email }, { userName }],
   });
 
@@ -43,32 +43,32 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const avatarLocalPath = req.files?.avatar[0]?.path;
   const coverImageLocalPath = req.files?.coverImage[0]?.path;
-
+  console.log(req.files);
   if (!avatarLocalPath) {
-    throw new apiError(400, "avatar image is required");
+    throw new apiError(400, "avatar image is required multer");
   }
 
   // file upload to cloudinary, which will give us the link in the response, that we will store it in the database.
-  // uploading to any file upload service provider takes time thats why we are using await. so that only after uploading the files successfully, program will execute further.
+  // uploading files to any file upload service provider takes time thats why we are using await. so that only after uploading the files successfully, program will execute further.
 
-  const avatar = await uploadFileOnCloudinary(avatarLocalPath);
-  const coverImage = await uploadFileOnCloudinary(coverImageLocalPath);
-
-  if (!avatar) {
-    throw new apiError(400, "avatar image is required");
+  const newavatar = await uploadOnCloudinary(avatarLocalPath);
+  const newcoverImage = await uploadOnCloudinary(coverImageLocalPath);
+  if (!newavatar) {
+    throw new apiError(400, "avatar image is required to upload on cloudinary");
   }
 
   // Create user Object, Entry in database(DB)
   const newUser = await User.create({
     fullName,
     avatar: avatar.url,
-    coverImage: coverImage?.url || "",
+    coverImage: newcoverImage?.url || "",
     email,
     password,
     userName: userName.toLowerCase(),
   });
 
   // Checking if this user is successfully created in the database
+  // Whatever entry is created in the database, MongoDB automatically give them a usique id. Which is accessible by _id.
   const createdUser = await User.findById(newUser._id).select(
     "-password -refreshToken"
   );
