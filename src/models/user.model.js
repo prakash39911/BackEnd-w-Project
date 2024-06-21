@@ -72,8 +72,11 @@ userSchema.methods.isPasswordCorrect = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
-// JWT is a Bearer Token. Means it grants access to resources solely based on its possession.
+// JWT (json web Token) is a Bearer Token. Means it grants access to resources solely based on its possession.
 // means whoever has the token has access to the resources.
+// access token - short lived, refresh token (Session Token )- long lived
+// user do not have to provide username and password again and again, that is why refresh token is used.
+// for example, we have given user access for 15min through access token, after 15mnt when user is about to be logged out automatically, user can demand for access token again. As user already have refresh token in their device, frontend developer can send refresh token to the server, and ask for access token again. we as a backend developer will match that refresh Token that is already stored in our database.if refresh token matches, we will generate access token again and provide it to the user for extended logged IN.
 
 userSchema.methods.generateAccessToken = function () {
   return jwt.sign(

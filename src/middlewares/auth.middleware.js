@@ -7,6 +7,8 @@ import { User } from "../models/user.model.js";
 
 export const verifyJWT = asyncHandler(async (req, res, next) => {
   try {
+    // req.header(Authorization)?.replace("Bearer ", ""); -- this code is if someone is Using Mobile App.
+
     const token =
       req.cookies?.accessToken ||
       req.header(Authorization)?.replace("Bearer ", "");

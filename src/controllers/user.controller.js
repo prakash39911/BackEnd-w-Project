@@ -4,6 +4,25 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import multer from "multer";
+import jwt from "jsonwebtoken";
+
+const generateAccessRefreshToken = async function (userId) {
+  try {
+    const newUser = await User.findById(userId);
+    const accessToken = await newUser.generateAccessToken();
+    const refreshToken = await newUser.generateRefreshToken();
+
+    newUser.refreshToken = refreshToken;
+    newUser.save({ validateBeforeSave: false });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new apiError(
+      500,
+      "Something went wrong while generating access and refresh token"
+    );
+  }
+};
 
 const registerUser = asyncHandler(async (req, res) => {
   // get user details from frontend
@@ -95,28 +114,6 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new apiResponse(200, createdUser, "User registered Successfully"));
 });
 
-// access token - for Short duration,   refresh token - for longer duration
-// we send both access token and refresh token to user's device securely via cookies.
-// we will also store refresh token in the database, so that we do not have to ask for user's login id and password again and again.
-
-const generateAccessRefreshToken = async function (userId) {
-  try {
-    const newUser = await User.findById(userId);
-    const accessToken = await newUser.generateAccessToken();
-    const refreshToken = await newUser.generateRefreshToken();
-
-    newUser.refreshToken = refreshToken;
-    newUser.save({ validateBeforeSave: false });
-
-    return { accessToken, refreshToken };
-  } catch (error) {
-    throw new apiError(
-      500,
-      "Something went wrong while generating access and refresh token"
-    );
-  }
-};
-
 const loginUser = asyncHandler(async (req, res) => {
   // take data from (req.body)
   // match if username or email already exist
@@ -200,4 +197,54 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new apiResponse(200, {}, "User LoggedOut Successfully"));
 });
 
-export { registerUser, loginUser, logoutUser };
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+
+  // if someone is using mobile app, for that this code is used -- req.body.refreshToken
+
+  if (!incomingRefreshToken) {
+    throw new apiError(401, "unauthorized request");
+  }
+
+  const decodedToken = jwt.verify(
+    incomingRefreshToken,
+    process.env.REFRESH_TOKEN_SECRET
+  );
+
+  const isUser = await User.findById(decodedToken?._id);
+
+  if (!isUser) {
+    throw new apiError(400, "user does not exist");
+  }
+
+  if (incomingRefreshToken !== isUser.refreshToken) {
+    throw new apiError(400, "user does not exist with the token provided");
+  }
+
+  const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
+    await generateAccessRefreshToken(isUser._id);
+
+  const cookieOption = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", newAccessToken, cookieOption)
+    .cookie("refreshToken", newRefreshToken, cookieOption)
+    .json(
+      new apiResponse(
+        200,
+        {
+          incomingRefreshToken,
+          newRefreshToken,
+          newAccessToken,
+        },
+        "Access token refreshed"
+      )
+    );
+});
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken };
