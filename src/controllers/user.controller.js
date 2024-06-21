@@ -39,12 +39,22 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new apiError(409, "User wih email or username already exist");
   }
 
-  // Files (image ) upload to Local storage using Multer
+  // Files (image ) upload to Local storage using Multer. Multer gives access to req.files.
 
   const avatarLocalPath = req.files?.avatar[0]?.path;
   const coverImageLocalPath = req.files?.coverImage[0]?.path;
+  // // we can check above condition in another way --
+  // let coverImageLocalPathNew;
+  // if (
+  //   req.files &&
+  //   Array.isArray(req.files.coverImage) &&
+  //   req.files.coverImage.length > 0
+  // ) {
+  //   coverImageLocalPathNew = req.files.coverImage[0].path;
+  // }
+
   if (!avatarLocalPath) {
-    throw new apiError(400, "avatar image is required multer");
+    throw new apiError(400, "avatar local path is not available : multer");
   }
 
   // file upload to cloudinary, which will give us the link in the response, that we will store it in the database.
@@ -85,4 +95,109 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new apiResponse(200, createdUser, "User registered Successfully"));
 });
 
-export { registerUser };
+// access token - for Short duration,   refresh token - for longer duration
+// we send both access token and refresh token to user's device securely via cookies.
+// we will also store refresh token in the database, so that we do not have to ask for user's login id and password again and again.
+
+const generateAccessRefreshToken = async function (userId) {
+  try {
+    const newUser = await User.findById(userId);
+    const accessToken = await newUser.generateAccessToken();
+    const refreshToken = await newUser.generateRefreshToken();
+
+    newUser.refreshToken = refreshToken;
+    newUser.save({ validateBeforeSave: false });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new apiError(
+      500,
+      "Something went wrong while generating access and refresh token"
+    );
+  }
+};
+
+const loginUser = asyncHandler(async (req, res) => {
+  // take data from (req.body)
+  // match if username or email already exist
+  //compare password
+  //generate access token and refresh token
+  // Send Secure cookies (contains access and refresh token)
+  //return response
+
+  const { userName, email, password } = req.body;
+
+  if (!(userName || email)) {
+    throw new apiError(400, "username or email required to login");
+  }
+
+  const existedUser = await User.findOne({
+    $or: [{ userName }, { email }],
+  });
+
+  if (!existedUser) {
+    throw new apiError(400, "User does not exist");
+  }
+
+  const chkPassword = await existedUser.isPasswordCorrect(password);
+
+  if (!chkPassword) {
+    throw new apiError(400, "Incorrect Password");
+  }
+
+  const { accessToken, refreshToken } = await generateAccessRefreshToken(
+    existedUser._id
+  );
+
+  const loggedInUser = await User.findById(existedUser._id).select(
+    "-password -refreshToken"
+  );
+
+  // by using these options, cookies can be modified only through servers.
+  const cookieOption = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, cookieOption) // cookie(key, value, options)
+    .cookie("refreshToken", refreshToken, cookieOption)
+    .json(
+      new apiResponse(
+        200,
+        { user: loggedInUser, accessToken, refreshToken },
+        "You are successfully loggedin"
+      )
+    );
+});
+
+const logoutUser = asyncHandler(async (req, res) => {
+  // find the user using (auth.middleware.js) (ofcourse from the token stored in the user's device, which we can access through (req.cookies))
+  //set user's refreshToken to Undefined in the Database
+  // Remove cookie (cookie contains access Token and refresh Token) from user's device
+
+  const updatedUser = await User.findByIdAndUpdate(
+    // this method on User Model returns user after updating the current user data, so that it must return new updated data.
+    req.currentUser._id,
+    {
+      $set: { refreshToken: "" },
+    },
+    {
+      new: true,
+    }
+  );
+
+  const cookieOption = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", cookieOption)
+    .clearCookie("refreshToken", cookieOption)
+    .json(new apiResponse(200, {}, "User LoggedOut Successfully"));
+});
+
+export { registerUser, loginUser, logoutUser };
