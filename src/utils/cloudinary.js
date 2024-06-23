@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
+import { upload } from "../middlewares/multer.middleware.js";
 
 dotenv.config();
 
@@ -28,4 +29,13 @@ const uploadOnCloudinary = async (localFilePath) => {
   }
 };
 
-export { uploadOnCloudinary };
+const deleteFromCloudinary = async (publicId) => {
+  try {
+    const response = await cloudinary.uploader.destroy(publicId);
+    return response;
+  } catch (error) {
+    console.log("Could not able to delete file from Cloudinary", error);
+  }
+};
+
+export { uploadOnCloudinary, deleteFromCloudinary };
