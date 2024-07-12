@@ -10,6 +10,11 @@ import multer from "multer";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
+// app.use((err, req, res, next) => {   //// There are 4 parameters that can be passed in a handler function.////
+//   console.error(err.stack);
+//   res.status(500).send('Something broke!');
+// });
+
 const generateAccessRefreshToken = async function (userId) {
   try {
     const newUser = await User.findById(userId);

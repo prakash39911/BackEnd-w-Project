@@ -1,4 +1,4 @@
-import dotenv from "dotenv"; // We want that as soon as app loads, all of our app can access environment variables. so import it at the TOP.
+import dotenv from "dotenv"; // We want that as soon as application loads, all of our application can access environment variables. so import it at the TOP.
 import connectDB from "./db/connection.js";
 import { app } from "./app.js";
 
