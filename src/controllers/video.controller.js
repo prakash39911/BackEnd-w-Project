@@ -5,7 +5,10 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { deleteFromCloudinary } from "../utils/cloudinary.js";
 import { apiError } from "../utils/apiError.js";
 import { apiResponse } from "../utils/apiResponse.js";
+import { User } from "../models/user.model.js";
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import path from "path";
+import { error } from "console";
 
 const uploadVideo = asyncHandler(async (req, res) => {
   if (!req.currentUser) {
@@ -20,15 +23,13 @@ const uploadVideo = asyncHandler(async (req, res) => {
 
   const videoFilePath = req.files?.videoFile[0].path;
   const thumbnailPath = req.files?.thumbnail[0].path;
-  console.log(videoFilePath, thumbnailPath);
 
   if (!videoFilePath || !thumbnailPath) {
-    throw new apiError(400, "There is no video file Path");
+    throw new apiError(400, "There is no video file or thumbnail Path");
   }
 
   const videoCloudResponse = await uploadOnCloudinary(videoFilePath);
   const thumbnailCloudResponse = await uploadOnCloudinary(thumbnailPath);
-  console.log(videoCloudResponse, thumbnailCloudResponse);
 
   if (!videoCloudResponse || !thumbnailCloudResponse) {
     throw new apiError(
@@ -163,7 +164,9 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
   const updatedStatus = await Video.findByIdAndUpdate(
     videoId,
     {
-      isPublished: isPublished ? false : true,
+      $set: {
+        isPublished: isPublished == true ? false : true,
+      },
     },
     {
       new: true,
@@ -176,7 +179,67 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 });
 
 const getAllVideos = asyncHandler(async (req, res) => {
+  //-----  /getallvideo?page=1&limit=10&query&sortBy&sortType&userId
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
+
+  const updatedUser = await User.aggregate([
+    {
+      $match: {
+        _id: userId,
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "_id",
+        foreignField: "owner",
+        as: "allVideos",
+      },
+    },
+    {
+      $addFields: {
+        numberOfVideos: {
+          $size: "$allVideos",
+        },
+      },
+    },
+    {
+      $project: {
+        fullName: 1,
+        userName: 1,
+        allVideos: 1,
+        numberOfVideos: 1,
+      },
+    },
+  ]);
+
+  const options = {
+    page: page,
+    limit: limit,
+  };
+
+  // as we have used npm package "mongoose-aggregate-paginate-v2" to paginate the results, first we have written,                          Schema.plugin(aggregatePaginate), now any model created using this schema can use aggregatePaginate function.
+  // This function gives Promise, which we can handle using then,catch method.
+
+  // The result object in then method will contain the paginated results, along with additional pagination information like totalDocs, totalPages, page, limit, etc.
+
+  User.aggregatePaginate(updatedUser, options)
+    .then((result) => {
+      console.log(result);
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+
+  if (!updatedUser?.length) {
+    throw new apiError(400, "there is no videos which belongs to the User");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new apiResponse(200, updatedUser[0].allVideos, "all videos retrieved")
+    );
 });
 
 export {
@@ -185,4 +248,5 @@ export {
   updateVideo,
   deleteVideo,
   togglePublishStatus,
+  getAllVideos,
 };

@@ -359,7 +359,16 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     throw new apiError(400, "username is missing");
   }
 
-  // after writing aggregate piplelines, we get Values in an Array.
+  // Writing Aggregation Pipelines on User Collection (collection is like table in MySQL database).
+
+  // first stage -- $match will filter User Collection based on the field(userName) and it's value given. Output of ths stage will be only one document whose userName is same as provided.
+
+  // $lookup -- will join User Collection to Subscription Collection. it will find "_id" from User Document in the channel field from  subscription collection and ADDs the matching complete subscription document to the "subscribers Array". and subscribers will be new field in the User Document.
+
+  // $addFields -- will add specified fields (subscribersCount, channelSubscribedToCount, isSubscribed) to a particular User document.
+
+  // $project -- it will give us the final output based on the Field Data (fullName, userName, avatar, coverImage, email, subscribersCount, channelSubscribedToCount, isSubscribed) want to have in the final User document.
+
   const channel = await User.aggregate([
     {
       $match: {
@@ -438,6 +447,13 @@ const getWatchHistory = asyncHandler(async (req, res) => {
       },
     },
 
+    // First $lookup will match "_id" stored in watchHistory in User Document, and add matching video document into the new watchHistory array.  But this video does not have Owner name, it has owner field which has "_id" but not name.
+
+    // To find owner name for each particular video document, we have to use nested aggregation pipeline.
+
+    // Second $lookup will connect each video document to the user document. it will search owner(video document) in the User document(_id field), and add that matching user document to the new owner Array. On this owner document we again have one pipeline which will project (add) only those fields(fullName, avatar, userName) specified to the owner document.
+
+    // And finally, we want to add only owner fullName in the final video document, this video document will be present in the watchHistory array that will be added as a field to a particular user document.
     {
       $lookup: {
         from: "videos",
@@ -463,6 +479,8 @@ const getWatchHistory = asyncHandler(async (req, res) => {
             },
           },
           {
+            // we want only the first value i.e fullName from the owner array. it will be added as a owner field in each video document.
+            // Final user document will be having watchHistory field, which will contain all the video documents with their owner name, inside an array ofcourse.
             $addFields: {
               owner: {
                 $first: "$owner",

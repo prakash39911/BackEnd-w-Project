@@ -5,10 +5,14 @@ import {
   getVideoById,
   updateVideo,
   deleteVideo,
+  togglePublishStatus,
+  getAllVideos,
 } from "../controllers/video.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
+
+// router.use(verifyJWT); // Use verifyJWT middleware to all the routes in this file.
 
 router.route("/upload").post(
   verifyJWT,
@@ -27,10 +31,16 @@ router.route("/upload").post(
 
 // router.route("/c/:_id").get(getVideoById);
 
+router.route("/get/:videoID").get(verifyJWT, getVideoById);
+
 router
-  .route("/c/:videoId")
+  .route("/update/:videoId")
   .patch(verifyJWT, upload.single("thumbnail"), updateVideo);
 
 router.route("/delete").post(verifyJWT, deleteVideo);
+
+router.route("/changeStatus").patch(verifyJWT, togglePublishStatus);
+
+router.route("/getallvideo").get(verifyJWT, getAllVideos);
 
 export default router;
