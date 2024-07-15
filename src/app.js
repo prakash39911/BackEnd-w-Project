@@ -23,8 +23,12 @@ app.use(cookieParser()); // using it we can store Cookie in user devices(mob, de
 
 import userRouter from "./routes/user.route.js";
 import videoRouter from "./routes/video.route.js";
+import subscriptionRouter from "./routes/subscription.route.js";
+import tweetRouter from "./routes/tweet.route.js";
 
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/video", videoRouter);
+app.use("/api/v1/subscription", subscriptionRouter);
+app.use("/api/v1/tweet", tweetRouter);
 
 export { app };
