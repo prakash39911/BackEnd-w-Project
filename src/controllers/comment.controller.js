@@ -82,6 +82,11 @@ const getVideoComments = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   const { page = 1, limit = 10 } = req.query;
 
+  const options = {
+    page: page,
+    limit: limit,
+  };
+
   const commentAddedOnVideoDocument = await Video.aggregate([
     {
       $match: {
@@ -125,6 +130,14 @@ const getVideoComments = asyncHandler(async (req, res) => {
       },
     },
   ]);
+
+  Comment.aggregatePaginate(commentAddedOnVideoDocument, options)
+    .then((result) => {
+      console.log(result);
+    })
+    .catch((err) => {
+      console.log(err);
+    });
 
   return res
     .status(200)

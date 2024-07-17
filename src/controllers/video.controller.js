@@ -213,6 +213,10 @@ const getAllVideos = asyncHandler(async (req, res) => {
     },
   ]);
 
+  if (!updatedUser?.length) {
+    throw new apiError(400, "there is no videos which belongs to the User");
+  }
+
   const options = {
     page: page,
     limit: limit,
@@ -230,10 +234,6 @@ const getAllVideos = asyncHandler(async (req, res) => {
     .catch((err) => {
       console.log(err);
     });
-
-  if (!updatedUser?.length) {
-    throw new apiError(400, "there is no videos which belongs to the User");
-  }
 
   return res
     .status(200)
