@@ -5,7 +5,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
 
-export const verifyJWT = asyncHandler(async (req, res, next) => {
+const verifyJWT = asyncHandler(async (req, res, next) => {
   try {
     // req.header(Authorization)?.replace("Bearer ", ""); -- this code is if someone is Using Mobile App.
 
@@ -33,3 +33,5 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
     throw new apiError(500, "User retrieval from Token failed");
   }
 });
+
+export { verifyJWT };
