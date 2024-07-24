@@ -71,7 +71,13 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
 
     return res
       .status(200)
-      .json(200, isCreated, "Comment like was saved in the database");
+      .json(
+        new apiResponse(
+          200,
+          isCreated,
+          "Comment like was saved in the database"
+        )
+      );
   } else {
     const response = await Like.findOneAndDelete({
       comment: commentId,
@@ -84,7 +90,13 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
 
     return res
       .status(200)
-      .json(200, {}, "Like on the comment was deleted from the database");
+      .json(
+        new apiResponse(
+          200,
+          {},
+          "Like on the comment was deleted from the database"
+        )
+      );
   }
 });
 
@@ -150,21 +162,18 @@ const getLikedVideos = asyncHandler(async (req, res) => {
     throw new apiError(400, "User is not loggedIn");
   }
 
-  const likedVideosDoc = await Like.aggregate([
-    {
-      $match: {
-        likedBy: req.currentUser?._id,
-      },
+  const likedvideos = await Like.find({
+    likedBy: req.currentUser._id,
+    video: {
+      $exists: true,
     },
-  ]);
-
-  if (likedVideosDoc?.length === 0) {
-    throw new apiError(400, "There is no liked videos for a particular User");
-  }
+  });
 
   return res
     .status(200)
-    .json(200, likedVideosDoc, "All Videos liked by a loggedIn user");
+    .json(
+      new apiResponse(200, likedvideos, "All Videos liked by a loggedIn user")
+    );
 });
 
 export { toggleVideoLike, toggleCommentLike, toggleTweetLike, getLikedVideos };

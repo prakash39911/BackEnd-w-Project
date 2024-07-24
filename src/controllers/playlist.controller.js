@@ -64,14 +64,12 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
   }
 
   const videoArr = playlistDoc.videos;
-
   const index = videoArr.indexOf(videoId);
-
-  const updatedVideoArr = videoArr.splice(index, 1);
+  const updatedVideoArr = videoArr.filter((ele) => ele !== videoArr[index]);
 
   playlistDoc.videos = updatedVideoArr;
 
-  await Playlist.save({ validateBeforeSave: false });
+  await playlistDoc.save({ validateBeforeSave: false });
 
   return res
     .status(200)
@@ -87,10 +85,12 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
 const getUserPlaylist = asyncHandler(async (req, res) => {
   const { userId } = req.params;
 
+  const userDoc = await User.findById(userId);
+
   const allPlaylist = await Playlist.aggregate([
     {
       $match: {
-        owner: userId,
+        owner: userDoc._id,
       },
     },
 

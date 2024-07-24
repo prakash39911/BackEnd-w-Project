@@ -3,27 +3,17 @@ import { User } from "../models/user.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { apiError } from "../utils/apiError.js";
 import { apiResponse } from "../utils/apiResponse.js";
+import { loginUser } from "./user.controller.js";
 
 const toggleSubscription = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
 
-  const subscriptionDoc = await Subscription.aggregate([
-    {
-      $match: {
-        subscriber: req.currentUser._id,
-        channel: channelId,
-      },
-    },
-  ]);
+  const subscriptionDoc = await Subscription.findOne({
+    subscriber: req.currentUser._id,
+    channel: channelId,
+  });
 
-  if (subscriptionDoc?.length === 1) {
-    await Subscription.deleteOne({ _id: subscriptionDoc[0]._id });
-    return res
-      .status(200)
-      .json(new apiResponse(200, {}, "Unsubscribed Successfully"));
-  }
-
-  if (subscriptionDoc?.length === 0) {
+  if (!subscriptionDoc) {
     const newSubscription = await Subscription.create({
       subscriber: req.currentUser._id,
       channel: channelId,
@@ -40,16 +30,23 @@ const toggleSubscription = asyncHandler(async (req, res) => {
           "Successfully Subscribed to the Channel"
         )
       );
+  } else {
+    await Subscription.deleteOne({ _id: subscriptionDoc._id });
+    return res
+      .status(200)
+      .json(new apiResponse(200, {}, "Unsubscribed Successfully"));
   }
 });
 
 const getUserChannelSubscribers = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
 
+  const actualDoc = await User.findById(channelId);
+
   const subscriber = await User.aggregate([
     {
       $match: {
-        _id: channelId,
+        _id: actualDoc._id,
       },
     },
 
@@ -87,10 +84,12 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
 const getSubscribedChannels = asyncHandler(async (req, res) => {
   const { subscriberId } = req.params;
 
+  const actualDoc = await User.findById(subscriberId);
+
   const channelSubscribed = await User.aggregate([
     {
       $match: {
-        _id: subscriberId,
+        _id: actualDoc._id,
       },
     },
 
@@ -113,6 +112,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
     {
       $project: {
         channelSubscribedTo: 1,
+        fullName: 1,
       },
     },
   ]);

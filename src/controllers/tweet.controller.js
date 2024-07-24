@@ -58,6 +58,7 @@ const getUsersTweet = asyncHandler(async (req, res) => {
 
     {
       $project: {
+        fullName: 1,
         tweetsArr: 1,
       },
     },
@@ -75,37 +76,26 @@ const getUsersTweet = asyncHandler(async (req, res) => {
 });
 
 const updateTweet = asyncHandler(async (req, res) => {
+  const { tweetId } = req.params;
   const { newTweetToBeUpdated } = req.body;
 
   if (!newTweetToBeUpdated?.trim()) {
     throw new apiError(400, "Please provide valid string to update your tweet");
   }
 
-  const updatedTweet = await Tweet.aggregate([
-    {
-      $match: {
-        owner: req.currentUser._id,
-      },
-    },
-
+  const updatedTweetDoc = await Tweet.findByIdAndUpdate(
+    tweetId,
     {
       $set: {
         content: newTweetToBeUpdated,
       },
     },
-
-    {
-      $merge: {
-        into: "tweets",
-        whenMatched: "merge",
-        whenNotMatched: "fail",
-      },
-    },
-  ]);
+    { new: true }
+  );
 
   return res
     .status(200)
-    .json(new apiResponse(200, updatedTweet, "Tweet Updated Successfully"));
+    .json(new apiResponse(200, updatedTweetDoc, "Tweet Updated Successfully"));
 });
 
 const deleteTweet = asyncHandler(async (req, res) => {

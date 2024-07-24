@@ -259,17 +259,25 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
 
-  const currentUser = await User.findById(req.currentUser._id);
+  if (!(oldPassword || newPassword)) {
+    throw new apiError(400, "OldPassword and new Password required");
+  }
 
-  const isPasswordCorrect = await currentUser.isPasswordCorrect(oldPassword);
+  if (!req.currentUser) {
+    throw new apiError(400, "There is no loggedIn user");
+  }
 
-  if (!isPasswordCorrect) {
+  const userFound = await User.findById(req.currentUser._id);
+
+  const isCorrect = await userFound.isPasswordCorrect(oldPassword);
+
+  if (!isCorrect) {
     throw new apiError(400, "Invalid old password");
   }
 
-  currentUser.password = newPassword;
+  userFound.password = newPassword;
 
-  await currentUser.save({ validateBeforeSave: false });
+  await userFound.save({ validateBeforeSave: false });
 
   return res
     .status(200)
@@ -312,7 +320,8 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-  const avatarLocalPath = req.file?.avatar[0].path;
+  console.log(req.file);
+  const avatarLocalPath = req.file?.path;
 
   if (!avatarLocalPath) {
     throw new apiError(400, "new avatar image is not given by the user");
@@ -406,9 +415,9 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
           $cond: {
             if: {
               $in: [req.currentUser?._id, "$subscribers.subscriber"],
-              then: true,
-              else: false,
             },
+            then: true,
+            else: false,
           },
         },
       },
@@ -418,6 +427,8 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       $project: {
         fullName: 1,
         userName: 1,
+        subscribers: 1,
+        subscribedTo: 1,
         subscribersCount: 1,
         channelSubscribedToCount: 1,
         isSubscribed: 1,
@@ -443,7 +454,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
   const user = await User.aggregate([
     {
       $match: {
-        _id: new mongoose.Types.ObjectId(req.currentUser._id),
+        _id: req.currentUser._id,
       },
     },
 

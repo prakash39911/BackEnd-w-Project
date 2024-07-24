@@ -44,7 +44,6 @@ const uploadVideo = asyncHandler(async (req, res) => {
     title: title,
     description: description,
     duration: videoCloudResponse.duration,
-    views: 1, // This is pending.
     isPublished: true,
     owner: req.currentUser._id,
   });
@@ -141,7 +140,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
   if (!req.currentUser) {
     throw new apiError(400, "You are not authorised to delete a video");
   }
-  const { videoId } = req.query;
+  const { videoId } = req.params;
 
   if (!videoId) {
     throw new apiError(400, "Correct Video id is not provided");
@@ -161,11 +160,13 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     throw new apiError(400, "There is no correct video id provided");
   }
 
+  const videoDoc = await Video.findById(videoId);
+
   const updatedStatus = await Video.findByIdAndUpdate(
     videoId,
     {
       $set: {
-        isPublished: isPublished == true ? false : true,
+        isPublished: videoDoc.isPublished === true ? false : true,
       },
     },
     {
@@ -180,12 +181,16 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 
 const getAllVideos = asyncHandler(async (req, res) => {
   //-----  /getallvideo?page=1&limit=10&query&sortBy&sortType&userId
-  const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
+  const { page = 1, limit = 10, userId } = req.query;
+
+  const userIdfromDoc = await User.findById(userId);
+
+  // We can not use incoming userId directly into the aggregation pipelines to search for a document.
 
   const updatedUser = await User.aggregate([
     {
       $match: {
-        _id: userId,
+        _id: userIdfromDoc._id,
       },
     },
     {
@@ -217,23 +222,23 @@ const getAllVideos = asyncHandler(async (req, res) => {
     throw new apiError(400, "there is no videos which belongs to the User");
   }
 
-  const options = {
-    page: page,
-    limit: limit,
-  };
+  // const options = {
+  //   page: page,
+  //   limit: limit,
+  // };
 
   // as we have used npm package "mongoose-aggregate-paginate-v2" to paginate the results, first we have written,                          Schema.plugin(aggregatePaginate), now any model created using this schema can use aggregatePaginate function.
   // This function gives Promise, which we can handle using then,catch method.
 
   // The result object in then method will contain the paginated results, along with additional pagination information like totalDocs, totalPages, page, limit, etc.
 
-  User.aggregatePaginate(updatedUser, options)
-    .then((result) => {
-      console.log(result);
-    })
-    .catch((err) => {
-      console.log(err);
-    });
+  // User.aggregatePaginate(updatedUser, options)
+  //   .then((result) => {
+  //     console.log(result);
+  //   })
+  //   .catch((err) => {
+  //     console.log(err);
+  //   });
 
   return res
     .status(200)

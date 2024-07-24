@@ -21,7 +21,7 @@ const addComment = asyncHandler(async (req, res) => {
   const isComment = await Comment.findById(newComment._id);
 
   if (!isComment) {
-    throw new apiError(500, "Comment was not added");
+    throw new apiError(500, "Comment was not added in the database");
   }
 
   return res
@@ -80,24 +80,20 @@ const deleteComment = asyncHandler(async (req, res) => {
 
 const getVideoComments = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
-  const { page = 1, limit = 10 } = req.query;
 
-  const options = {
-    page: page,
-    limit: limit,
-  };
+  const videoDoc = await Video.findById(videoId);
 
   const commentAddedOnVideoDocument = await Video.aggregate([
     {
       $match: {
-        _id: videoId,
+        _id: videoDoc._id,
       },
     },
 
     {
       $lookup: {
         from: "comments",
-        localField: "videoId",
+        localField: "_id",
         foreignField: "video",
         as: "commentsArray",
         pipeline: [
@@ -118,26 +114,10 @@ const getVideoComments = asyncHandler(async (req, res) => {
               ],
             },
           },
-
-          {
-            $addFields: {
-              ownerDetails: {
-                $first: "$ownerArray",
-              },
-            },
-          },
         ],
       },
     },
   ]);
-
-  Comment.aggregatePaginate(commentAddedOnVideoDocument, options)
-    .then((result) => {
-      console.log(result);
-    })
-    .catch((err) => {
-      console.log(err);
-    });
 
   return res
     .status(200)
