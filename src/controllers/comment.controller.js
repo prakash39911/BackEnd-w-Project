@@ -3,6 +3,7 @@ import { Comment } from "../models/comment.model.js";
 import { apiError } from "../utils/apiError.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import { Video } from "../models/video.model.js";
+import mongoose from "mongoose";
 
 const addComment = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
@@ -130,4 +131,39 @@ const getVideoComments = asyncHandler(async (req, res) => {
     );
 });
 
-export { addComment, updateComment, deleteComment, getVideoComments };
+const getVideoCommentsWithPagination = asyncHandler(async (req, res) => {
+  const { page, limit, videoId } = req.query;
+
+  // Pagination --------------
+  const pageInt = parseInt(page) || 1;
+  const limitInt = parseInt(limit) || 5;
+
+  const skipResults = (pageInt - 1) * limitInt;
+
+  const paginationResult = await Comment.find({ video: videoId })
+    .skip(skipResults)
+    .limit(limitInt);
+
+  const commentDocCount = await Comment.countDocuments();
+
+  const totalPages = Math.ceil(commentDocCount / limitInt);
+  const curretPage = pageInt;
+
+  if (curretPage > totalPages) {
+    throw new apiError(500, "There is no results for the requested Page");
+  }
+
+  return res.status(200).json({
+    paginationResult,
+    totalPages,
+    curretPage,
+  });
+});
+
+export {
+  addComment,
+  updateComment,
+  deleteComment,
+  getVideoComments,
+  getVideoCommentsWithPagination,
+};
